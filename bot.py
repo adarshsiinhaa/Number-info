@@ -6,24 +6,18 @@ import time
 BOT_TOKEN = "8570866416:AAFqqGvK4RAl8U2s51PqEldHDyUwpzTuM8Q"
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
 
-EXTERNAL_API_URL = ""  # <-- PUT YOUR PHONE LOOKUP API URL HERE
-# Example format expected: EXTERNAL_API_URL + mobile_number
+EXTERNAL_API_URL = "https://phonevalidation.abstractapi.com/v1/?api_key=YOUR_API_KEY&phone="
 
-# Store user states
 user_states = {}
 
-# ================== TELEGRAM FUNCTIONS ==================
+# ================== FUNCTIONS ==================
 
 def send_message(chat_id, text, reply_markup=None, parse_mode=None):
     url = API_URL + "sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text
-    }
+    payload = {"chat_id": chat_id, "text": text}
 
     if reply_markup:
         payload["reply_markup"] = json.dumps(reply_markup)
-
     if parse_mode:
         payload["parse_mode"] = parse_mode
 
@@ -32,115 +26,76 @@ def send_message(chat_id, text, reply_markup=None, parse_mode=None):
 
 def get_updates(offset=None):
     url = API_URL + "getUpdates"
-    params = {
-        "timeout": 30
-    }
+    params = {"timeout": 30}
     if offset:
         params["offset"] = offset
-
-    response = requests.get(url, params=params)
-    return response.json()
+    return requests.get(url, params=params).json()
 
 
-# ================== KEYBOARD ==================
-
-def get_main_keyboard():
+def get_keyboard():
     return {
-        "keyboard": [
-            ["📱 Phone Lookup"]
-        ],
-        "resize_keyboard": True,
-        "one_time_keyboard": False
+        "keyboard": [["📱 Phone Lookup"]],
+        "resize_keyboard": True
     }
-
-
-# ================== HANDLERS ==================
-
-def handle_start(chat_id):
-    text = (
-        "👋 Welcome!\n\n"
-        "I can help you lookup phone information.\n"
-        "Use the button below to get started."
-    )
-    send_message(chat_id, text, reply_markup=get_main_keyboard())
 
 
 def handle_phone_lookup(chat_id):
-    user_states[chat_id] = "WAITING_FOR_PHONE"
-    send_message(chat_id, "📞 Send 10 digit mobile number:")
+    user_states[chat_id] = "WAITING"
+    send_message(chat_id, "📞 Send Indian mobile number\nExample: 9876543210 or +919876543210")
 
 
-def handle_phone_number(chat_id, phone):
-    if not phone.isdigit() or len(phone) != 10:
-        send_message(chat_id, "❌ Invalid number. Please send a valid 10 digit mobile number.")
-        return
+def handle_phone(chat_id, phone):
+    # Auto add +91 if only 10 digits
+    if phone.isdigit() and len(phone) == 10:
+        phone = "+91" + phone
 
-    send_message(chat_id, "🔎 Looking up number... Please wait.")
+    send_message(chat_id, "🔎 Checking number...")
 
     try:
         response = requests.get(EXTERNAL_API_URL + phone, timeout=10)
         data = response.json()
-
         formatted = "<pre>" + json.dumps(data, indent=2) + "</pre>"
         send_message(chat_id, formatted, parse_mode="HTML")
-
-    except Exception as e:
-        send_message(chat_id, "⚠️ Error fetching data from API.")
+    except:
+        send_message(chat_id, "⚠️ API Error. Try again later.")
 
     user_states[chat_id] = None
 
 
 # ================== MAIN LOOP ==================
 
-def main():
-    print("🤖 Bot is running...")
-    offset = None
+print("🤖 Bot is running...")
 
-    while True:
-        try:
-            updates = get_updates(offset)
+offset = None
+while True:
+    try:
+        updates = get_updates(offset)
 
-            if "result" in updates:
-                for update in updates["result"]:
-                    offset = update["update_id"] + 1
+        if "result" in updates:
+            for update in updates["result"]:
+                offset = update["update_id"] + 1
 
-                    if "message" not in update:
-                        continue
+                if "message" not in update or "text" not in update["message"]:
+                    continue
 
-                    message = update["message"]
-                    chat_id = message["chat"]["id"]
+                msg = update["message"]
+                chat_id = msg["chat"]["id"]
+                text = msg["text"].strip()
 
-                    if "text" not in message:
-                        continue
+                if text == "/start":
+                    send_message(chat_id, "👋 Welcome! Use button below.", reply_markup=get_keyboard())
 
-                    text = message["text"].strip()
+                elif text == "📱 Phone Lookup":
+                    handle_phone_lookup(chat_id)
 
-                    # Command: /start
-                    if text == "/start":
-                        handle_start(chat_id)
-                        continue
+                elif user_states.get(chat_id) == "WAITING":
+                    handle_phone(chat_id, text)
 
-                    # Button pressed
-                    if text == "📱 Phone Lookup":
-                        handle_phone_lookup(chat_id)
-                        continue
+                else:
+                    send_message(chat_id, "Use the keyboard 🙂", reply_markup=get_keyboard())
 
-                    # If waiting for phone number
-                    if user_states.get(chat_id) == "WAITING_FOR_PHONE":
-                        handle_phone_number(chat_id, text)
-                        continue
+    except Exception as e:
+        print("Error:", e)
+        time.sleep(5)
 
-                    # Default reply
-                    send_message(chat_id, "Please use the keyboard buttons 🙂", reply_markup=get_main_keyboard())
-
-        except Exception as e:
-            print("Error:", e)
-            time.sleep(5)
-
-        time.sleep(1)
-
-
-# ================== RUN ==================
-
-if __name__ == "__main__":
-    main()
+    time.sleep(1)
