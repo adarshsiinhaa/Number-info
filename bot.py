@@ -6,7 +6,7 @@ import time
 BOT_TOKEN = "8570866416:AAFqqGvK4RAl8U2s51PqEldHDyUwpzTuM8Q"
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
 
-EXTERNAL_API_URL = "https://phonevalidation.abstractapi.com/v1/?api_key=dcbd92d91bda456b8564da0db2bfaef2&phone="
+EXTERNAL_API_URL = "https://phoneintelligence.abstractapi.com/v1/?api_key=dcbd92d91bda456b8564da0db2bfaef2&phone="
 
 user_states = {}
 
