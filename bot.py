@@ -3,7 +3,7 @@ import json
 import time
 
 # ================== CONFIG ==================
-BOT_TOKEN = 8570866416:AAFqqGvK4RAl8U2s51PqEldHDyUwpzTuM8Q
+BOT_TOKEN = "8570866416:AAFqqGvK4RAl8U2s51PqEldHDyUwpzTuM8Q"
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
 
 EXTERNAL_API_URL = ""  # <-- PUT YOUR PHONE LOOKUP API URL HERE
